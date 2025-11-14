@@ -1,0 +1,46 @@
+name: Build Universal APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install tools
+        run: |
+          sudo apt update
+          sudo apt install unzip -y
+          wget https://github.com/google/bundletool/releases/download/1.15.0/bundletool-all-1.15.0.jar -O bundletool.jar
+
+      - name: Download AAB from repo
+        run: |
+          ls -al
+          cp DS_player.aab app.aab
+          cp dsplayer.jks key.jks
+
+      - name: Build Universal APK
+        run: |
+          java -jar bundletool.jar build-apks \
+            --bundle=app.aab \
+            --output=app.apks \
+            --mode=universal \
+            --ks=key.jks \
+            --ks-pass=pass:qwertyuiop \
+            --key-pass=pass:qwertyuiop \
+            --ks-key-alias=dsplayer-key
+
+      - name: Extract APK
+        run: |
+          unzip app.apks -d apks
+          mv apks/universal.apk DS_PLAYER.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: DS_PLAYER
+          path: DS_PLAYER.apk
