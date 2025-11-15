@@ -1,0 +1,61 @@
+name: Build DS_Player APKs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.aab'
+
+jobs:
+  build-apks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Download BundleTool
+        run: |
+          curl -L -o bundletool.jar https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar
+
+      - name: Generate debug keystore if not exists
+        run: |
+          if [ ! -f dsplayer.jks ]; then
+            keytool -genkeypair -v \
+              -keystore dsplayer.jks \
+              -storepass qwertyuiop \
+              -keypass qwertyuiop \
+              -alias dsplayer \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=diljan, OU=ds player, O=rt, L=us, ST=pb, C=IN"
+          fi
+
+      - name: Build APKS
+        run: |
+          for aab in *.aab; do
+            output="${aab%.aab}.apks"
+            java -jar bundletool.jar build-apks \
+              --bundle=$aab \
+              --output=$output \
+              --mode=universal \
+              --ks=dsplayer.jks \
+              --ks-key-alias=dsplayer \
+              --ks-pass=pass:qwertyuiop \
+              --key-pass=pass:qwertyuiop
+          done
+
+      - name: Upload APKS as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: DS_Player_APKS
+          path: "*.apks"
