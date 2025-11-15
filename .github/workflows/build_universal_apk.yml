@@ -1,0 +1,70 @@
+name: Build Universal APK
+
+# Trigger workflow on push to main or manually
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.aab'
+  workflow_dispatch:
+
+jobs:
+  build-universal-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo with LFS support
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # 2️⃣ Setup Java 17
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # 3️⃣ Download BundleTool
+      - name: Download BundleTool
+        run: |
+          curl -L -o bundletool.jar https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar
+
+      # 4️⃣ Generate debug keystore if it doesn't exist
+      - name: Generate debug keystore
+        run: |
+          if [ ! -f dsplayer.jks ]; then
+            keytool -genkeypair -v \
+              -keystore dsplayer.jks \
+              -storepass qwertyuiop \
+              -keypass qwertyuiop \
+              -alias dsplayer \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=diljan, OU=ds player, O=rt, L=us, ST=pb, C=IN"
+          fi
+
+      # 5️⃣ Build universal APKs from all .aab files
+      - name: Build APKS
+        run: |
+          for aab in *.aab; do
+            output="${aab%.aab}.apks"
+            java -jar bundletool.jar build-apks \
+              --bundle=$aab \
+              --output=$output \
+              --mode=universal \
+              --ks=dsplayer.jks \
+              --ks-key-alias=dsplayer \
+              --ks-pass=pass:qwertyuiop \
+              --key-pass=pass:qwertyuiop
+          done
+
+      # 6️⃣ Upload all generated .apks as artifact
+      - name: Upload APKS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DS_Player_APKS
+          path: "*.apks"
