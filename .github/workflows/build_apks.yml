@@ -10,23 +10,28 @@ on:
 jobs:
   build-apks:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      # 1️⃣ Checkout repo with LFS support
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           lfs: true
 
+      # 2️⃣ Setup Java 17
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
+      # 3️⃣ Download bundletool
       - name: Download BundleTool
         run: |
           curl -L -o bundletool.jar https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar
 
-      - name: Generate debug keystore if not exists
+      # 4️⃣ Generate debug keystore if not exists
+      - name: Generate debug keystore
         run: |
           if [ ! -f dsplayer.jks ]; then
             keytool -genkeypair -v \
@@ -40,6 +45,7 @@ jobs:
               -dname "CN=diljan, OU=ds player, O=rt, L=us, ST=pb, C=IN"
           fi
 
+      # 5️⃣ Build APKS from all .aab files
       - name: Build APKS
         run: |
           for aab in *.aab; do
@@ -54,7 +60,12 @@ jobs:
               --key-pass=pass:qwertyuiop
           done
 
-      - name: Upload APKS as artifact
+      # 6️⃣ Debug: check generated APKS files
+      - name: List generated APKS
+        run: ls -lh *.apks || echo "No APKS generated"
+
+      # 7️⃣ Upload APKS as artifact (v4)
+      - name: Upload APKS artifact
         uses: actions/upload-artifact@v4
         with:
           name: DS_Player_APKS
